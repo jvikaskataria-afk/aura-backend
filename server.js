@@ -60,7 +60,7 @@ app.get("/auth/google/callback", async (req, res) => {
   savedTokens = tokens;
   oauth2Client.setCredentials(tokens);
 
-  res.send("✅ AURA connected");
+ res.redirect("https://aura-life-operator.lovable.app/dashboard");
 });
 
 // ===============================
