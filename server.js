@@ -39,7 +39,8 @@ let savedTokens = null;
 const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
-  "http://localhost:3001/auth/google/callback"
+  "https://aura-backend-17pj.onrender.com/auth/google/callback"
+);
 );
 
 // ===============================
@@ -293,4 +294,6 @@ app.get("/events/fix", async (req, res) => {
 // 🚀 START
 // ===============================
 
-app.listen(3001, () => console.log("🚀 AURA running on 3001"));
+const PORT = process.env.PORT || 3001;
+
+app.listen(PORT, () => console.log(`🚀 AURA running on ${PORT}`));
