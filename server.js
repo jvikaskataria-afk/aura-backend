@@ -10,6 +10,14 @@ app.use(cors());
 app.use(express.json());
 
 // ===============================
+// ✅ HEALTH CHECK (VERY IMPORTANT)
+// ===============================
+
+app.get("/", (req, res) => {
+  res.send("AURA backend running 🚀");
+});
+
+// ===============================
 // 🔥 MONGODB
 // ===============================
 
@@ -41,27 +49,35 @@ const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_SECRET,
   "https://aura-backend-17pj.onrender.com/auth/google/callback"
 );
-);
 
 // ===============================
 // 🔐 AUTH ROUTES
 // ===============================
 
 app.get("/auth/google", (req, res) => {
+  console.log("🔥 HIT /auth/google");
+
   const url = oauth2Client.generateAuthUrl({
     access_type: "offline",
     prompt: "consent",
     scope: ["https://www.googleapis.com/auth/calendar"]
   });
+
   res.redirect(url);
 });
 
 app.get("/auth/google/callback", async (req, res) => {
-  const { tokens } = await oauth2Client.getToken(req.query.code);
-  savedTokens = tokens;
-  oauth2Client.setCredentials(tokens);
+  try {
+    const { tokens } = await oauth2Client.getToken(req.query.code);
 
- res.redirect("https://aura-life-operator.lovable.app/dashboard");
+    savedTokens = tokens;
+    oauth2Client.setCredentials(tokens);
+
+    res.redirect("https://aura-life-operator.lovable.app/dashboard");
+  } catch (err) {
+    console.error("OAuth Error:", err);
+    res.send("OAuth failed");
+  }
 });
 
 // ===============================
@@ -133,7 +149,7 @@ app.get("/sync", async (req, res) => {
 });
 
 // ===============================
-// 📅 EVENTS TODAY (FIXED)
+// 📅 EVENTS TODAY
 // ===============================
 
 app.get("/events/today", async (req, res) => {
@@ -171,123 +187,6 @@ app.get("/energy", (req, res) => {
   }
 
   res.json(data);
-});
-
-// ===============================
-// 🧠 AI INSIGHTS (FIXED)
-// ===============================
-
-app.get("/insights", async (req, res) => {
-  try {
-    const start = startOfDay(new Date());
-    const end = endOfDay(new Date());
-
-    const events = await Event.find({
-      start: { $gte: start, $lte: end }
-    });
-
-    const meetings = events.filter(e => e.type === "meeting");
-    const deepwork = events.filter(e => e.type === "deepwork");
-
-    let insights = [];
-
-    if (meetings.length >= 3) {
-      insights.push("⚠️ Too many meetings today.");
-    }
-
-    if (deepwork.length === 0) {
-      insights.push("🧠 No deep work scheduled.");
-    }
-
-    const totalHours = events.reduce((sum, e) => {
-      return sum + (new Date(e.end) - new Date(e.start)) / (1000 * 60 * 60);
-    }, 0);
-
-    if (totalHours > 8) {
-      insights.push("🔥 Overloaded schedule.");
-    }
-
-    if (insights.length === 0) {
-      insights.push("✅ Balanced day.");
-    }
-
-    res.json({ insights });
-
-  } catch (err) {
-    console.error("Insights Error:", err);
-    res.status(500).json({ error: "Insights failed" });
-  }
-});
-
-// ===============================
-// 🔥 FIX MY DAY (FINAL)
-// ===============================
-
-app.get("/events/fix", async (req, res) => {
-  try {
-    const now = new Date();
-
-    const existing = await Event.find({
-      type: "deepwork",
-      end: { $gt: now }
-    });
-
-    if (existing.length > 0) {
-      return res.json({
-        success: true,
-        message: "Already optimized",
-        events: existing
-      });
-    }
-
-    await Event.deleteMany({
-      type: "deepwork",
-      end: { $lt: now }
-    });
-
-    const events = await Event.find().sort({ start: 1 });
-
-    const futureEvents = events.filter(e => new Date(e.end) > now);
-
-    let pointer = new Date(now);
-
-    for (let i = 0; i < futureEvents.length; i++) {
-      const eventStart = new Date(futureEvents[i].start);
-      const eventEnd = new Date(futureEvents[i].end);
-
-      if (eventStart - pointer >= 60 * 60 * 1000) {
-        const start = new Date(pointer);
-        const end = new Date(start.getTime() + 60 * 60 * 1000);
-
-        const newEvent = await Event.create({
-          title: "🔥 Deep Work",
-          start,
-          end,
-          type: "deepwork"
-        });
-
-        return res.json({ success: true, event: newEvent });
-      }
-
-      if (eventEnd > pointer) pointer = new Date(eventEnd);
-    }
-
-    const start = new Date(pointer);
-    const end = new Date(start.getTime() + 60 * 60 * 1000);
-
-    const newEvent = await Event.create({
-      title: "🔥 Deep Work",
-      start,
-      end,
-      type: "deepwork"
-    });
-
-    res.json({ success: true, event: newEvent });
-
-  } catch (err) {
-    console.error("Fix My Day Error:", err);
-    res.status(500).json({ error: "Fix failed" });
-  }
 });
 
 // ===============================
