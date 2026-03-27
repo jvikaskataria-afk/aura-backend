@@ -109,6 +109,36 @@ app.get("/auth/google/callback",
 );
 
 // ===============================
+// ⚡ FIX MY DAY (AI SIMULATION)
+// ===============================
+
+app.post("/fix-day", async (req, res) => {
+  try {
+    const events = await Event.find().sort({ start: 1 });
+
+    if (!events.length) {
+      return res.json({
+        message: "No events to optimize",
+        suggestion: "Add events first"
+      });
+    }
+
+    // Dummy AI logic (we'll upgrade later)
+    const suggestion = "Move meetings to afternoon and add Deep Work in morning";
+
+    res.json({
+      message: "Day optimized 🚀",
+      suggestion,
+      events
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to optimize day" });
+  }
+});
+
+// ===============================
 // 📅 GOOGLE CALENDAR
 // ===============================
 
