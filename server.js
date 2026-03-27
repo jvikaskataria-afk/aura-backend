@@ -1,29 +1,34 @@
 require("dotenv").config();
+
 const express = require("express");
 const cors = require("cors");
 
 const app = express();
 
-// 🔥 IMPORTANT FOR RENDER
-app.set("trust proxy", 1);
-
-// Middleware
 app.use(cors());
 app.use(express.json());
 
-// TEST ROUTE
+// 🔥 FORCE TEST ROUTE
 app.get("/", (req, res) => {
+  console.log("ROOT HIT");
   res.send("AURA backend running 🚀");
 });
 
-// TEST GOOGLE ROUTE
+// 🔥 FORCE TEST ROUTE 2
 app.get("/auth/google", (req, res) => {
+  console.log("GOOGLE ROUTE HIT");
   res.send("Google auth route working ✅");
 });
 
-// PORT FIX
-const PORT = process.env.PORT || 5000;
+// 🔥 CATCH ALL (IMPORTANT)
+app.use((req, res) => {
+  console.log("UNKNOWN ROUTE:", req.url);
+  res.status(404).send("Route not found ❌");
+});
+
+const PORT = process.env.PORT || 10000;
 
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log("🔥 SERVER STARTED");
+  console.log("PORT:", PORT);
 });
