@@ -24,11 +24,11 @@ app.use(cors({
 app.use(express.json());
 
 // ===============================
-// 🔥 SESSION
+// 🔥 SESSION (FIXED FOR RENDER)
 // ===============================
 
 app.use(session({
-  secret: "supersecret",
+  secret: process.env.SESSION_SECRET || "supersecret",
   resave: false,
   saveUninitialized: false,
   cookie: {
@@ -41,12 +41,15 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 // ===============================
-// 🔥 MONGODB
+// 🔥 MONGODB (FIXED)
 // ===============================
 
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log("✅ MongoDB Connected"))
-  .catch(err => console.log("❌ Mongo Error:", err));
+mongoose.connect(process.env.MONGO_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+})
+.then(() => console.log("✅ MongoDB Connected"))
+.catch(err => console.log("❌ Mongo Error:", err));
 
 // ===============================
 // 📦 SCHEMA
@@ -62,7 +65,7 @@ const EventSchema = new mongoose.Schema({
 const Event = mongoose.model("Event", EventSchema);
 
 // ===============================
-// 🔐 GOOGLE AUTH
+// 🔐 GOOGLE AUTH (FIXED)
 // ===============================
 
 let savedTokens = null;
@@ -72,7 +75,7 @@ passport.use(new GoogleStrategy({
   clientSecret: process.env.GOOGLE_CLIENT_SECRET,
   callbackURL: "https://aura-backend-ns8z.onrender.com/auth/google/callback"
 },
-async (accessToken, refreshToken, profile, done) => {
+(accessToken, refreshToken, profile, done) => {
 
   savedTokens = {
     access_token: accessToken,
@@ -96,7 +99,13 @@ app.get("/", (req, res) => {
 // 👉 LOGIN
 app.get("/auth/google",
   passport.authenticate("google", {
-    scope: ["profile", "email", "https://www.googleapis.com/auth/calendar"]
+    scope: [
+      "profile",
+      "email",
+      "https://www.googleapis.com/auth/calendar"
+    ],
+    accessType: "offline",
+    prompt: "consent"
   })
 );
 
@@ -104,12 +113,12 @@ app.get("/auth/google",
 app.get("/auth/google/callback",
   passport.authenticate("google", { failureRedirect: "/" }),
   (req, res) => {
-    res.send("Login successful 🚀");
+    res.redirect("https://aura-life-operator.lovable.app/dashboard");
   }
 );
 
 // ===============================
-// ⚡ FIX MY DAY (AI SIMULATION)
+// ⚡ FIX MY DAY
 // ===============================
 
 app.post("/fix-day", async (req, res) => {
@@ -123,7 +132,6 @@ app.post("/fix-day", async (req, res) => {
       });
     }
 
-    // Dummy AI logic (we'll upgrade later)
     const suggestion = "Move meetings to afternoon and add Deep Work in morning";
 
     res.json({
@@ -139,44 +147,40 @@ app.post("/fix-day", async (req, res) => {
 });
 
 // ===============================
-// 📅 GOOGLE CALENDAR
+// 📅 GOOGLE CALENDAR (FIXED)
 // ===============================
 
-function startOfDay(date) {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
-function endOfDay(date) {
-  const d = new Date(date);
-  d.setHours(23, 59, 59, 999);
-  return d;
-}
-
 async function getTodayEvents() {
-  const oauth2Client = new google.auth.OAuth2();
+  if (!savedTokens) return [];
+
+  const oauth2Client = new google.auth.OAuth2(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET
+  );
+
   oauth2Client.setCredentials(savedTokens);
 
   const calendar = google.calendar({ version: "v3", auth: oauth2Client });
 
   const res = await calendar.events.list({
     calendarId: "primary",
-    timeMin: startOfDay(new Date()).toISOString(),
-    timeMax: endOfDay(new Date()).toISOString(),
+    timeMin: new Date().setHours(0,0,0,0),
+    timeMax: new Date().setHours(23,59,59,999),
     singleEvents: true,
     orderBy: "startTime"
   });
 
-  return res.data.items.map(e => ({
-    title: e.summary,
-    start: new Date(e.start.dateTime),
-    end: new Date(e.end.dateTime)
-  }));
+  return res.data.items
+    .filter(e => e.start?.dateTime)
+    .map(e => ({
+      title: e.summary,
+      start: new Date(e.start.dateTime),
+      end: new Date(e.end.dateTime)
+    }));
 }
 
 // ===============================
-// 🔥 SYNC ROUTE (THIS WAS MISSING)
+// 🔄 SYNC
 // ===============================
 
 app.get("/sync", async (req, res) => {
@@ -207,12 +211,16 @@ app.get("/sync", async (req, res) => {
 });
 
 // ===============================
-// 📅 FETCH EVENTS
+// 📅 EVENTS TODAY
 // ===============================
 
 app.get("/events/today", async (req, res) => {
-  const events = await Event.find().sort({ start: 1 });
-  res.json(events);
+  try {
+    const events = await Event.find().sort({ start: 1 });
+    res.json(events);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch events" });
+  }
 });
 
 // ===============================
